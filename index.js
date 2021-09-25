@@ -1,5 +1,6 @@
 "use strict";
 
+let common = require("./common");
 const { Constants } = require("./constants");
 const AWS = require("aws-sdk");
 AWS.config.update({
@@ -8,17 +9,12 @@ AWS.config.update({
 const dynamodb = new AWS.DynamoDB.DocumentClient();
 const hardwareStateTableName = "hardware-state";
 
-exports.handler = async (event, param2) => {
-  console.log("Event: ", event);
-  console.log("Param2: ", param2);
-
+exports.handler = async (event) => {
   let response;
   let statusCode;
 
   const requestBody = event.body ? JSON.parse(event.body) : null;
   var queryString = event.queryStringParameters;
-  console.log(queryString);
-  console.log("Request Body: ", requestBody);
 
   switch (true) {
     case event.httpMethod === Constants.GetMethod &&
@@ -41,73 +37,22 @@ exports.handler = async (event, param2) => {
 };
 
 let getHardwareState = async function (hardwareId, needCurrent = false) {
-  const param = {
+  const params = {
     TableName: hardwareStateTableName,
     Key: {
       hardwareId: hardwareId,
     },
   };
 
-  return await dynamodb
-    .get(param)
-    .promise()
-    .then(
-      (response) => {
-        return response.Item;
-      },
-      (error) => {
-        console.error("Error: ", error);
-      }
-    );
+  return await common.getFromDB(dynamodb, params);
 };
 
 let updateHardwareState = async function (hardwareState) {
-  // try {
-  //   let existingHardwareState = await getHardwareState(
-  //     hardwareState.hardwareId,
-  //     true
-  //   );
-
-  //   if (existingHardwareState) {
-  //     await deleteHardwareState(hardwareState.hardwareId);
-  //   }
-  // } catch (error) {
-  //   console.log("Error in updateHardwareState: ", error);
-  // }
-
-  await createHardwareState(hardwareState);
-};
-
-let deleteHardwareState = async function (hardwareId) {
-  let params = {
-    TableName: hardwareStateTableName,
-    Key: {
-      hardwareId: hardwareId,
-    },
-  };
-  return await dynamodb.delete(params).promise();
-};
-
-let createHardwareState = async function (hardwareState) {
   let params = {
     TableName: hardwareStateTableName,
     Item: hardwareState,
   };
-  return await dynamodb
-    .put(params)
-    .promise()
-    .then(
-      () => {
-        const body = {
-          Operation: "SAVE",
-          Message: "SUCCESS",
-          Item: hardwareState,
-        };
-      },
-      (error) => {
-        console.error("Error: ", error);
-      }
-    );
+  return await common.putInDB(dynamodb, params);
 };
 
 let buildResponse = function (statusCode, body) {
